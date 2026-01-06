@@ -4,6 +4,10 @@ import com.example.todo.dto.TaskRequestDTO;
 import com.example.todo.exception.TaskNotFoundException;
 import com.example.todo.model.Task;
 import com.example.todo.repository.TaskRepository;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,13 +23,18 @@ public class TaskService {
         this.taskRepository = taskRepository;
     }
 
-    public List<Task> getAllTasks() {
-        return taskRepository.findAll();
+    public Page<Task> getPaginatedTasks(int page, int size){
+        PageRequest pageable = PageRequest.of(page, size);
+        return taskRepository.findAll(pageable);
     }
 
+    public List<Task> findTasks(String text){
+        return taskRepository.findByTitleOrDescription(text);
+        
+    }
+    
     public Task create(TaskRequestDTO request) {
         Task newTask = Task.builder()
-                .id(UUID.randomUUID())
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .completed(false)
@@ -60,4 +69,8 @@ public class TaskService {
         return taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + id));
     }
+
+
+   
+
 }

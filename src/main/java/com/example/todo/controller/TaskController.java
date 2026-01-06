@@ -4,15 +4,22 @@ import com.example.todo.dto.TaskRequestDTO;
 import com.example.todo.model.Task;
 import com.example.todo.service.TaskService;
 import jakarta.validation.Valid;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+
 @RestController
 @RequestMapping("/tasks")
+@Transactional
 public class TaskController {
 
     private final TaskService taskService;
@@ -23,9 +30,18 @@ public class TaskController {
     }
 
     @GetMapping
-    public List<Task> getAllTasks() {
-        return taskService.getAllTasks();
+    public Page<Task> getAllTasks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size)
+    {
+        return taskService.getPaginatedTasks(page, size);
     }
+
+    @GetMapping("/filter")
+    public List<Task> getMethodName(@RequestParam String text ) {
+        return taskService.findTasks(text);
+    }
+    
 
     @GetMapping("/{id}")
     public ResponseEntity<Task> getTaskById(@PathVariable UUID id) {
@@ -50,4 +66,5 @@ public class TaskController {
         taskService.delete(id);
         return ResponseEntity.noContent().build(); // status 204 No Content
     }
+    
 }
