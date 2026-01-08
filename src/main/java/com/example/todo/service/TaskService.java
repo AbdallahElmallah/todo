@@ -1,20 +1,22 @@
 package com.example.todo.service;
 
+import com.example.todo.dto.TaskDTO;
 import com.example.todo.dto.TaskRequestDTO;
 import com.example.todo.exception.TaskNotFoundException;
 import com.example.todo.model.Task;
 import com.example.todo.repository.TaskRepository;
 
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
-@Service 
+@Service
+@Transactional(readOnly = true)
 public class TaskService {
 
     private final TaskRepository taskRepository;
@@ -23,17 +25,20 @@ public class TaskService {
         this.taskRepository = taskRepository;
     }
 
-    public Page<Task> getPaginatedTasks(int page, int size){
+    public Page<TaskDTO> getPaginatedTasks(int page, int size){
         PageRequest pageable = PageRequest.of(page, size);
-        return taskRepository.findAll(pageable);
+        return taskRepository.findAll(pageable).map(this::convertTaskToDTO);
     }
 
-    public List<Task> findTasks(String text){
-        return taskRepository.findByTitleOrDescription(text);
+    public Page<TaskDTO> findTasks(String text,int page, int size){
+        PageRequest pageable = PageRequest.of(page, size);
+
+        return taskRepository.findByTitleOrDescriptionLike(text, pageable).map(this::convertTaskToDTO);
         
     }
-    
-    public Task create(TaskRequestDTO request) {
+   
+    @Transactional
+    public TaskDTO create(TaskRequestDTO request) {
         Task newTask = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -41,23 +46,26 @@ public class TaskService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return taskRepository.save(newTask);
+        Task entityTask = taskRepository.save(newTask);
+        return convertTaskToDTO(entityTask);
     }
 
-    public Task getById(UUID id) {
-        return getTaskOrThrow(id);
+    public TaskDTO getById(UUID id) {
+        return convertTaskToDTO(getTaskOrThrow(id));
     }
 
-    public Task update(UUID id, TaskRequestDTO request) {
+    @Transactional
+    public TaskDTO update(UUID id, TaskRequestDTO request) {
         Task existingTask = getTaskOrThrow(id);
 
         existingTask.setTitle(request.getTitle());
         existingTask.setDescription(request.getDescription());
         existingTask.setCompleted(request.isCompleted());
 
-        return taskRepository.save(existingTask);
+        return convertTaskToDTO( taskRepository.save(existingTask));
     }
 
+    @Transactional
     public void delete(UUID id) {
         if (!taskRepository.existsById(id)) {
             throw new TaskNotFoundException("Task not found with id: " + id);
@@ -70,7 +78,14 @@ public class TaskService {
                 .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + id));
     }
 
-
+ private TaskDTO convertTaskToDTO(Task task) {
+    return TaskDTO.builder()
+            .id(task.getId())
+            .title(task.getTitle())
+            .description(task.getDescription())
+            .completed(task.isCompleted())
+            .build();
+}
    
 
 }

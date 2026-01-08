@@ -2,7 +2,6 @@ package com.example.todo.repository;
 
 import com.example.todo.model.Task;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -14,7 +13,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface TaskRepository extends JpaRepository<Task,UUID>{
 
-    @Query("SELECT t FROM Task t WHERE t.title = :text OR t.description = :text")
-    public List<Task> findByTitleOrDescription(@Param("text") String text);
-
+    @Query("SELECT t FROM Task t WHERE t.title like %:text%  OR t.description like %:text%")
+    public Page<Task> findByTitleOrDescriptionLike(@Param("text") String text , Pageable pageable);
 }
