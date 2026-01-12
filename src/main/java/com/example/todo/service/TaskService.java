@@ -2,13 +2,20 @@ package com.example.todo.service;
 
 import com.example.todo.dto.TaskDTO;
 import com.example.todo.dto.TaskRequestDTO;
+import com.example.todo.entity.Task;
+import com.example.todo.entity.User;
 import com.example.todo.exception.TaskNotFoundException;
-import com.example.todo.model.Task;
 import com.example.todo.repository.TaskRepository;
+import com.example.todo.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.oauth2.jwt.Jwt;
 
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,33 +24,43 @@ import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class TaskService {
 
     private final TaskRepository taskRepository;
 
-    public TaskService(TaskRepository taskRepository) {
-        this.taskRepository = taskRepository;
+    private String getCurrentUserSub() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (principal instanceof Jwt jwt) {
+            return jwt.getSubject();
+        }
+
+        throw new RuntimeException("Authentication principal is not a valid JWT token");
     }
 
-    public Page<TaskDTO> getPaginatedTasks(int page, int size){
+    public Page<TaskDTO> getPaginatedTasks(int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
-        return taskRepository.findAll(pageable).map(this::convertTaskToDTO);
+
+        return taskRepository.findByUserId(getCurrentUserSub(), pageable).map(this::convertTaskToDTO);
     }
 
-    public Page<TaskDTO> findTasks(String text,int page, int size){
+    public Page<TaskDTO> findTasks(String text, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
 
-        return taskRepository.findByTitleOrDescriptionLike(text, pageable).map(this::convertTaskToDTO);
-        
+        return taskRepository.findByTitleOrDescriptionLikeAndUserId(text, getCurrentUserSub(), pageable)
+                .map(this::convertTaskToDTO);
     }
-   
+
     @Transactional
     public TaskDTO create(TaskRequestDTO request) {
+
         Task newTask = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .completed(false)
                 .createdAt(LocalDateTime.now())
+                .userId(getCurrentUserSub())
                 .build();
 
         Task entityTask = taskRepository.save(newTask);
@@ -62,30 +79,27 @@ public class TaskService {
         existingTask.setDescription(request.getDescription());
         existingTask.setCompleted(request.isCompleted());
 
-        return convertTaskToDTO( taskRepository.save(existingTask));
+        return convertTaskToDTO(taskRepository.save(existingTask));
     }
 
     @Transactional
     public void delete(UUID id) {
-        if (!taskRepository.existsById(id)) {
-            throw new TaskNotFoundException("Task not found with id: " + id);
-        }
-        taskRepository.deleteById(id);
+        Task existingTask = getTaskOrThrow(id);
+        taskRepository.delete(existingTask);
     }
 
     private Task getTaskOrThrow(UUID id) {
         return taskRepository.findById(id)
-                .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + id));
+                .filter(task -> task.getUserId().equals(getCurrentUserSub()))
+                .orElseThrow(() -> new TaskNotFoundException("Task not found or access denied"));
     }
 
- private TaskDTO convertTaskToDTO(Task task) {
-    return TaskDTO.builder()
-            .id(task.getId())
-            .title(task.getTitle())
-            .description(task.getDescription())
-            .completed(task.isCompleted())
-            .build();
-}
-   
-
+    private TaskDTO convertTaskToDTO(Task task) {
+        return TaskDTO.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .completed(task.isCompleted())
+                .build();
+    }
 }

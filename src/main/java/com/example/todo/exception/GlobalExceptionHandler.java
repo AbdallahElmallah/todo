@@ -1,5 +1,6 @@
 package com.example.todo.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -40,5 +41,20 @@ public class GlobalExceptionHandler {
         error.put("error", "Invalid ID format. Please use a valid UUID.");
         error.put("details", ex.getMessage());
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST); // 400
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleGeneralException(Exception ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "An unexpected error occurred.");
+        error.put("details", ex.getMessage()); 
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleConflict(DataIntegrityViolationException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "User already exists or data conflict.");
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 }
