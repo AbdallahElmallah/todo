@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -41,4 +42,7 @@ public class Task {
 
     @JoinColumn(name = "user_id")
     private String userId;
+
+    @Column(name = "realm_id")
+    private String realmId;
 }

@@ -38,17 +38,26 @@ public class TaskService {
 
         throw new RuntimeException("Authentication principal is not a valid JWT token");
     }
+    private String getCurrentRealm() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (principal instanceof Jwt jwt) {
+            return jwt.getIssuer().toString();
+        }
+
+        throw new RuntimeException("Authentication principal is not a valid JWT token");
+    }
 
     public Page<TaskDTO> getPaginatedTasks(int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
 
-        return taskRepository.findByUserId(getCurrentUserSub(), pageable).map(this::convertTaskToDTO);
+        return taskRepository.findByUserIdAndRealmId(getCurrentUserSub(),getCurrentRealm(), pageable).map(this::convertTaskToDTO);
     }
 
     public Page<TaskDTO> findTasks(String text, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
 
-        return taskRepository.findByTitleOrDescriptionLikeAndUserId(text, getCurrentUserSub(), pageable)
+        return taskRepository.findByTitleOrDescriptionLikeAndUserIdAndRealmId(text, getCurrentUserSub(),getCurrentRealm(), pageable)
                 .map(this::convertTaskToDTO);
     }
 
@@ -61,6 +70,7 @@ public class TaskService {
                 .completed(false)
                 .createdAt(LocalDateTime.now())
                 .userId(getCurrentUserSub())
+                .realmId(getCurrentRealm())
                 .build();
 
         Task entityTask = taskRepository.save(newTask);
@@ -91,6 +101,7 @@ public class TaskService {
     private Task getTaskOrThrow(UUID id) {
         return taskRepository.findById(id)
                 .filter(task -> task.getUserId().equals(getCurrentUserSub()))
+                .filter(task -> task.getRealmId().equals(getCurrentRealm()))
                 .orElseThrow(() -> new TaskNotFoundException("Task not found or access denied"));
     }
 

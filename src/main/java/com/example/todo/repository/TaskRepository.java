@@ -14,8 +14,8 @@ import com.example.todo.entity.User;
 
 public interface TaskRepository extends JpaRepository<Task,UUID>{
 
-    @Query("SELECT t FROM Task t WHERE (t.title LIKE %:text% OR t.description LIKE %:text%) AND t.userId = :userId")
-    public Page<Task> findByTitleOrDescriptionLikeAndUserId(@Param("text") String text ,@Param("userId") String user, Pageable pageable);
+    @Query("SELECT t FROM Task t WHERE (t.title LIKE %:text% OR t.description LIKE %:text%) AND (t.userId = :userId) AND (t.realmId = :realmId) ")
+    public Page<Task> findByTitleOrDescriptionLikeAndUserIdAndRealmId(@Param("text") String text ,@Param("userId") String user,@Param("realmId") String realmId, Pageable pageable);
 
-    Page<Task> findByUserId(String user, Pageable pageable);
+    Page<Task> findByUserIdAndRealmId(String user, String realmId,Pageable pageable);
 }
