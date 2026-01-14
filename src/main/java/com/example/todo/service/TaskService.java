@@ -10,11 +10,13 @@ import com.example.todo.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.Jwt;
-
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,35 +31,36 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
 
-    private String getCurrentUserSub() {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    private Jwt getAuthenticatedJwt() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (principal instanceof Jwt jwt) {
-            return jwt.getSubject();
+        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+            return jwt;
         }
 
-        throw new RuntimeException("Authentication principal is not a valid JWT token");
+        throw new OAuth2AuthenticationException(new OAuth2Error("not_authorized"), "Invalid JWT Principal");
     }
+
+    private String getCurrentUserSub() {
+        return getAuthenticatedJwt().getSubject();
+    }
+
     private String getCurrentRealm() {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        if (principal instanceof Jwt jwt) {
-            return jwt.getIssuer().toString();
-        }
-
-        throw new RuntimeException("Authentication principal is not a valid JWT token");
+        return getAuthenticatedJwt().getIssuer().toString();
     }
 
     public Page<TaskDTO> getPaginatedTasks(int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
 
-        return taskRepository.findByUserIdAndRealmId(getCurrentUserSub(),getCurrentRealm(), pageable).map(this::convertTaskToDTO);
+        return taskRepository.findByUserIdAndRealmId(getCurrentUserSub(), getCurrentRealm(), pageable)
+                .map(this::convertTaskToDTO);
     }
 
     public Page<TaskDTO> findTasks(String text, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
 
-        return taskRepository.findByTitleOrDescriptionLikeAndUserIdAndRealmId(text, getCurrentUserSub(),getCurrentRealm(), pageable)
+        return taskRepository
+                .findByTitleOrDescriptionLikeAndUserIdAndRealmId(text, getCurrentUserSub(), getCurrentRealm(), pageable)
                 .map(this::convertTaskToDTO);
     }
 
