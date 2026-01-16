@@ -42,15 +42,17 @@ public class ProjectSecurityConfig {
 
                             JwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(iss);
                             return new JwtAuthenticationProvider(jwtDecoder)::authenticate;
-                            
+
                         });
                     }
                     throw new OAuth2AuthenticationException(new OAuth2Error("invalid_issuer", "Unknown Realm", null));
                 });
 
         http.authorizeHttpRequests(requests -> requests
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                 .anyRequest().authenticated())
+
 
                 .oauth2ResourceServer(oauth -> oauth
                         .authenticationManagerResolver(authenticationManagerResolver));
